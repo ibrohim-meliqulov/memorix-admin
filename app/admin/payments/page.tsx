@@ -123,12 +123,20 @@ export default function AdminPaymentsPage() {
             <h1 className="text-2xl font-bold text-gray-900">To'lov so'rovlari</h1>
             <p className="text-gray-500 text-sm mt-1">Foydalanuvchilarning plan so'rovlarini boshqaring</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            Chiqish
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/admin/stats')}
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-accent/40 rounded-lg transition-colors"
+            >
+              📊 Statistika
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              Chiqish
+            </button>
+          </div>
         </div>
 
         {/* Filter */}
@@ -138,8 +146,8 @@ export default function AdminPaymentsPage() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f
-                  ? 'bg-accent text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-accent/40'
+                ? 'bg-accent text-white'
+                : 'bg-white text-gray-600 border border-gray-200 hover:border-accent/40'
                 }`}
               style={filter === f ? { background: '#6C5CE7' } : undefined}
             >
