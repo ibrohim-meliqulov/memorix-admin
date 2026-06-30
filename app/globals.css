@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #6C5CE7;
+  --accent2: #a855f7;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: #f8f7ff;
+  color: #1e1b4b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
