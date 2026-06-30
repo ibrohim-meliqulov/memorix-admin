@@ -3,12 +3,9 @@
 // app/admin/stats/page.tsx
 // Ro'yxatdan o'tgan userlar soni + Free/Starter/Premium foizli taqsimot
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { getAdminToken } from '@/lib/api'
-
-// ⚠️ MOSLANG: loyihangizdagi haqiqiy API bazaviy manzili bilan
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'https://api.memorix.uz'
+import { adminFetch, clearAdminToken, getAdminToken } from '@/lib/api'
 
 interface PlanStat {
     count: number
@@ -38,115 +35,133 @@ export default function AdminStatsPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
+    const fetchStats = useCallback(async () => {
+        setLoading(true)
+        setError('')
+        try {
+            const data = await adminFetch('/admin/stats')
+            setStats(data)
+        } catch (err: any) {
+            if (err.status === 401 || err.status === 403) {
+                clearAdminToken()
+                router.push('/login')
+                return
+            }
+            setError(err.message ?? "Ma'lumot olinmadi")
+        } finally {
+            setLoading(false)
+        }
+    }, [router])
+
     useEffect(() => {
-        const token = getAdminToken()
-        if (!token) {
+        if (!getAdminToken()) {
             router.push('/login')
             return
         }
-
-        fetch(`${API_BASE}/admin/stats`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then(async (res) => {
-                if (!res.ok) throw new Error(`Xatolik: ${res.status}`)
-                return res.json()
-            })
-            .then((data: AdminStats) => setStats(data))
-            .catch((err) => setError(err.message ?? "Ma'lumot olinmadi"))
-            .finally(() => setLoading(false))
-    }, [router])
+        fetchStats()
+    }, [router, fetchStats])
 
     return (
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '32px 20px' }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 24 }}>
-                Foydalanuvchilar statistikasi
-            </h1>
-
-            {loading && (
-                <div
-                    className="w-8 h-8 border-3 border-gray-200 rounded-full animate-spin"
-                    style={{ borderTopColor: '#6C5CE7' }}
-                />
-            )}
-
-            {error && (
-                <div style={{ color: '#ef4444', fontSize: 14 }}>{error}</div>
-            )}
-
-            {stats && (
-                <>
-                    {/* Jami sondagi katta karta */}
-                    <div
-                        style={{
-                            background: 'white',
-                            border: '1px solid rgba(108,92,231,0.15)',
-                            borderRadius: 18,
-                            padding: '24px 28px',
-                            marginBottom: 20,
-                        }}
-                    >
-                        <div style={{ fontSize: 13, color: 'rgba(30,27,75,0.55)', marginBottom: 6 }}>
-                            Jami ro'yxatdan o'tgan userlar
-                        </div>
-                        <div style={{ fontSize: 36, fontWeight: 800 }}>{stats.total}</div>
+        <div className="min-h-screen bg-gray-50 p-6">
+            <div style={{ maxWidth: 760, margin: '0 auto' }}>
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">Foydalanuvchilar statistikasi</h1>
+                        <p className="text-gray-500 text-sm mt-1">Ro'yxatdan o'tganlar va reja bo'yicha taqsimot</p>
                     </div>
-
-                    {/* Plan bo'yicha taqsimot */}
-                    <div
-                        style={{
-                            background: 'white',
-                            border: '1px solid rgba(108,92,231,0.15)',
-                            borderRadius: 18,
-                            padding: '24px 28px',
-                        }}
+                    <button
+                        onClick={() => router.push('/admin/payments')}
+                        className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-accent/40 rounded-lg transition-colors"
                     >
-                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>
-                            Reja bo'yicha taqsimot
+                        ← To'lovlar
+                    </button>
+                </div>
+
+                {loading && (
+                    <div
+                        className="w-8 h-8 border-3 border-gray-200 rounded-full animate-spin"
+                        style={{ borderTopColor: '#6C5CE7' }}
+                    />
+                )}
+
+                {error && (
+                    <div style={{ color: '#ef4444', fontSize: 14 }}>{error}</div>
+                )}
+
+                {stats && (
+                    <>
+                        {/* Jami sondagi katta karta */}
+                        <div
+                            style={{
+                                background: 'white',
+                                border: '1px solid rgba(108,92,231,0.15)',
+                                borderRadius: 18,
+                                padding: '24px 28px',
+                                marginBottom: 20,
+                            }}
+                        >
+                            <div style={{ fontSize: 13, color: 'rgba(30,27,75,0.55)', marginBottom: 6 }}>
+                                Jami ro'yxatdan o'tgan userlar
+                            </div>
+                            <div style={{ fontSize: 36, fontWeight: 800 }}>{stats.total}</div>
                         </div>
 
-                        {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((key) => {
-                            const meta = PLAN_META[key]
-                            const data = stats.byPlan[key]
-                            return (
-                                <div key={key} style={{ marginBottom: 16 }}>
-                                    <div
-                                        style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            fontSize: 13,
-                                            marginBottom: 6,
-                                        }}
-                                    >
-                                        <span style={{ fontWeight: 600 }}>{meta.label}</span>
-                                        <span style={{ color: 'rgba(30,27,75,0.6)' }}>
-                                            {data.count} ta &middot; {data.percent}%
-                                        </span>
-                                    </div>
-                                    <div
-                                        style={{
-                                            background: 'rgba(108,92,231,0.08)',
-                                            borderRadius: 8,
-                                            height: 10,
-                                            overflow: 'hidden',
-                                        }}
-                                    >
+                        {/* Plan bo'yicha taqsimot */}
+                        <div
+                            style={{
+                                background: 'white',
+                                border: '1px solid rgba(108,92,231,0.15)',
+                                borderRadius: 18,
+                                padding: '24px 28px',
+                            }}
+                        >
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 18 }}>
+                                Reja bo'yicha taqsimot
+                            </div>
+
+                            {(Object.keys(PLAN_META) as Array<keyof typeof PLAN_META>).map((key) => {
+                                const meta = PLAN_META[key]
+                                const data = stats.byPlan[key]
+                                return (
+                                    <div key={key} style={{ marginBottom: 16 }}>
                                         <div
                                             style={{
-                                                width: `${data.percent}%`,
-                                                height: '100%',
-                                                background: meta.color,
-                                                borderRadius: 8,
-                                                transition: 'width 0.3s ease',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                fontSize: 13,
+                                                marginBottom: 6,
                                             }}
-                                        />
+                                        >
+                                            <span style={{ fontWeight: 600 }}>{meta.label}</span>
+                                            <span style={{ color: 'rgba(30,27,75,0.6)' }}>
+                                                {data.count} ta &middot; {data.percent}%
+                                            </span>
+                                        </div>
+                                        <div
+                                            style={{
+                                                background: 'rgba(108,92,231,0.08)',
+                                                borderRadius: 8,
+                                                height: 10,
+                                                overflow: 'hidden',
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: `${data.percent}%`,
+                                                    height: '100%',
+                                                    background: meta.color,
+                                                    borderRadius: 8,
+                                                    transition: 'width 0.3s ease',
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </>
-            )}
+                                )
+                            })}
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     )
 }
