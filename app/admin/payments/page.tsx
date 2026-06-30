@@ -26,6 +26,8 @@ export default function AdminPaymentsPage() {
   const [actionLoading, setActionLoading] = useState<number | null>(null)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
   const [authChecked, setAuthChecked] = useState(false)
+  // Har bir so'rov uchun admin tanlagan plan (boshlang'ich: so'rovdagi asl plan)
+  const [planOverrides, setPlanOverrides] = useState<Record<number, 'STARTER' | 'PRO'>>({})
 
   const fetchRequests = useCallback(async () => {
     setLoading(true)
@@ -35,6 +37,16 @@ export default function AdminPaymentsPage() {
         : `/payment/admin/requests?status=${filter}`
       const data = await adminFetch(url)
       setRequests(data)
+      // Yangi so'rovlar uchun boshlang'ich plan = so'rovdagi asl plan
+      setPlanOverrides((prev) => {
+        const next = { ...prev }
+        for (const r of data as PaymentRequest[]) {
+          if (!(r.id in next) && (r.plan === 'STARTER' || r.plan === 'PRO')) {
+            next[r.id] = r.plan
+          }
+        }
+        return next
+      })
     } catch (err: any) {
       if (err.status === 401 || err.status === 403) {
         clearAdminToken()
@@ -59,10 +71,14 @@ export default function AdminPaymentsPage() {
   }, [authChecked, fetchRequests])
 
   async function handleApprove(id: number) {
-    if (!confirm('Tasdiqlaysizmi? Userga plan beriladi.')) return
+    const plan = planOverrides[id]
+    if (!confirm(`Tasdiqlaysizmi? Userga ${plan} plan beriladi.`)) return
     setActionLoading(id)
     try {
-      await adminFetch(`/payment/admin/approve/${id}`, { method: 'PATCH' })
+      await adminFetch(`/payment/admin/approve/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ plan }),
+      })
       fetchRequests()
     } catch (err: any) {
       alert(err.message)
@@ -121,11 +137,10 @@ export default function AdminPaymentsPage() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filter === f
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f
                   ? 'bg-accent text-white'
                   : 'bg-white text-gray-600 border border-gray-200 hover:border-accent/40'
-              }`}
+                }`}
               style={filter === f ? { background: '#6C5CE7' } : undefined}
             >
               {f === 'ALL' ? 'Barchasi' : STATUS_LABELS[f as PaymentStatus]}
@@ -176,10 +191,26 @@ export default function AdminPaymentsPage() {
                       {req.user.telegramId && <span>✈️ @{req.user.telegramId}</span>}
                     </div>
 
-                    <div className="mt-2 flex items-center gap-3">
-                      <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
-                        {req.plan} PLAN
-                      </span>
+                    <div className="mt-2 flex items-center gap-3 flex-wrap">
+                      {req.status === 'PENDING' ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">User so'ragan: <strong className="text-gray-600">{req.plan}</strong></span>
+                          <select
+                            value={planOverrides[req.id] ?? req.plan}
+                            onChange={(e) =>
+                              setPlanOverrides((prev) => ({ ...prev, [req.id]: e.target.value as 'STARTER' | 'PRO' }))
+                            }
+                            className="text-xs font-bold px-2 py-1 rounded-full border border-purple-200 bg-purple-50 text-purple-700 outline-none cursor-pointer"
+                          >
+                            <option value="STARTER">STARTER</option>
+                            <option value="PRO">PRO (Premium)</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
+                          {req.plan} PLAN
+                        </span>
+                      )}
                       <span className="text-xs text-gray-400">
                         {new Date(req.createdAt).toLocaleString('uz-UZ')}
                       </span>
